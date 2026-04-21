@@ -1,7 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import type { Tables } from "@/integrations/supabase/types";
 import menuRibeye from "@/assets/menu-ribeye.jpg";
 import menuArancini from "@/assets/menu-arancini.jpg";
 import shishaPairing from "@/assets/shisha-pairing.jpg";
+
+type Profile = Tables<"profiles">;
 
 const MealPassCard = () => (
   <div className="bg-card rounded-3xl p-6 sm:p-8 ring-1 ring-border shadow-[0_0_60px_-15px_hsl(var(--amber-glow)/0.15)] relative overflow-hidden">
@@ -143,47 +149,69 @@ const MenuPreview = () => (
   </div>
 );
 
-const navItems = [
-  { label: "Pass", active: true },
-  { label: "Menu", active: false },
-  { label: "Reserve", active: false },
-  { label: "Profile", active: false },
-];
+const BottomNav = () => {
+  const navigate = useNavigate();
+  const items = [
+    { label: "Pass", path: "/", active: true },
+    { label: "Menu", path: "/", active: false },
+    { label: "Reserve", path: "/", active: false },
+    { label: "Profile", path: "/profile", active: false },
+  ];
 
-const BottomNav = () => (
-  <nav className="fixed bottom-0 left-0 w-full bg-card/95 backdrop-blur-lg border-t border-border grid grid-cols-4 z-50">
-    {navItems.map((item) => (
-      <button
-        key={item.label}
-        className={`py-4 flex flex-col items-center gap-1 text-sm font-semibold transition-colors ${
-          item.active ? "text-primary" : "text-toast hover:text-foreground"
-        }`}
-      >
-        {item.label}
-      </button>
-    ))}
-  </nav>
-);
+  return (
+    <nav className="fixed bottom-0 left-0 w-full bg-card/95 backdrop-blur-lg border-t border-border grid grid-cols-4 z-50">
+      {items.map((item) => (
+        <button
+          key={item.label}
+          onClick={() => navigate(item.path)}
+          className={`py-4 flex flex-col items-center gap-1 text-sm font-semibold transition-colors ${
+            item.active ? "text-primary" : "text-toast hover:text-foreground"
+          }`}
+        >
+          {item.label}
+        </button>
+      ))}
+    </nav>
+  );
+};
 
 const StudentDashboard = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [profile, setProfile] = useState<Profile | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("profiles")
+      .select("*")
+      .eq("user_id", user.id)
+      .single()
+      .then(({ data }) => {
+        if (data) setProfile(data);
+      });
+  }, [user]);
+
+  const initials = profile
+    ? `${(profile.name?.[0] || "").toUpperCase()}${(profile.surname?.[0] || "").toUpperCase()}` || "?"
+    : "?";
+
+  const greeting = new Date().getHours() < 12 ? "Good Morning" : new Date().getHours() < 17 ? "Good Afternoon" : "Good Evening";
+
   return (
     <div className="min-h-dvh bg-background pb-24">
-      {/* Header */}
       <header className="px-5 pt-8 pb-4 flex justify-between items-end">
         <div>
-          <p className="text-toast text-sm font-medium tracking-wide uppercase mb-1">Good Evening</p>
+          <p className="text-toast text-sm font-medium tracking-wide uppercase mb-1">{greeting}</p>
           <h1 className="font-serif text-2xl sm:text-3xl font-medium tracking-tight text-foreground">
             Khumkwhezi<br />Dine & Shisha
           </h1>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="size-11 rounded-full bg-secondary flex items-center justify-center shrink-0 ring-1 ring-border">
-            <span className="font-serif text-brass text-base">ZT</span>
-          </div>
-        </div>
+        <button onClick={() => navigate("/profile")} className="size-11 rounded-full bg-secondary flex items-center justify-center shrink-0 ring-1 ring-border hover:ring-primary transition-colors">
+          <span className="font-serif text-brass text-base">{initials}</span>
+        </button>
       </header>
 
-      {/* Content */}
       <main className="px-5 flex flex-col gap-8 mt-2">
         <MealPassCard />
         <ReservationSlots />
