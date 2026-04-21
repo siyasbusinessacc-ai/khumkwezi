@@ -1,7 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import type { Tables } from "@/integrations/supabase/types";
 import menuRibeye from "@/assets/menu-ribeye.jpg";
 import menuArancini from "@/assets/menu-arancini.jpg";
 import shishaPairing from "@/assets/shisha-pairing.jpg";
+
+type Profile = Tables<"profiles">;
 
 const MealPassCard = () => (
   <div className="bg-card rounded-3xl p-6 sm:p-8 ring-1 ring-border shadow-[0_0_60px_-15px_hsl(var(--amber-glow)/0.15)] relative overflow-hidden">
