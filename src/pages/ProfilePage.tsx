@@ -16,13 +16,17 @@ const ProfilePage = () => {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
     supabase
       .from("profiles")
       .select("*")
       .eq("user_id", user.id)
-      .single()
-      .then(({ data }) => {
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (error) console.error("Profile fetch error:", error.message);
         if (data) setProfile(data);
         setLoading(false);
       });

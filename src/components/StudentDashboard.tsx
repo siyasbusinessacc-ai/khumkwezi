@@ -186,8 +186,9 @@ const StudentDashboard = () => {
       .from("profiles")
       .select("*")
       .eq("user_id", user.id)
-      .single()
-      .then(({ data }) => {
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (error) console.error("Profile fetch error:", error.message);
         if (data) setProfile(data);
       });
   }, [user]);
