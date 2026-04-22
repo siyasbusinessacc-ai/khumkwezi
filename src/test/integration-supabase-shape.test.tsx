@@ -121,8 +121,8 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe("Integration: real Supabase query shape — ProfilePage fetch", () => {
-  it("issues GET /rest/v1/profiles?select=*&user_id=eq.<uuid> with correct headers", async () => {
+describe("Integration: real Supabase query shape — ProfilePage fetch (.maybeSingle)", () => {
+  it("issues GET /rest/v1/profiles?select=*&user_id=eq.<uuid> with maybeSingle headers", async () => {
     setNextResponse({
       status: 200,
       body: [
@@ -158,11 +158,21 @@ describe("Integration: real Supabase query shape — ProfilePage fetch", () => {
     expect(url.searchParams.get("select")).toBe("*");
     expect(url.searchParams.get("user_id")).toBe(`eq.${userId}`);
 
+    // PostgREST single-row contract for .maybeSingle() in this supabase-js version:
+    // - The client parses the array response itself, so it does NOT send
+    //   `Accept: application/vnd.pgrst.object+json` (which would 406 on 0 rows).
+    // - It also does NOT add `limit=1` to the query string.
+    // This is what distinguishes .maybeSingle() from .single() on the wire.
+    expect(fetchReq!.headers["accept"] ?? "").not.toMatch(/vnd\.pgrst\.object/);
+    expect(url.searchParams.get("limit")).toBeNull();
+
     // apikey/auth header proves the real client is wired up.
     const apikey = fetchReq!.headers["apikey"] ?? fetchReq!.headers["Apikey"];
     expect(apikey).toBe(FAKE_KEY);
+    expect(fetchReq!.headers["authorization"]).toBe(`Bearer ${FAKE_KEY}`);
 
-    // UI populated → confirms the chain actually returned data the page consumed.
+    // UI populated → confirms the chain actually returned data the page consumed,
+    // i.e. .maybeSingle() correctly unwrapped the single-element array.
     await waitFor(() => {
       expect(screen.getByDisplayValue("Thabo")).toBeInTheDocument();
       expect(screen.getByDisplayValue("Mokoena")).toBeInTheDocument();
@@ -219,6 +229,10 @@ describe("Integration: real Supabase query shape — ProfilePage update", () => 
     const url = new URL(patchReq.url);
     expect(url.pathname).toBe("/rest/v1/profiles");
     expect(url.searchParams.get("user_id")).toBe(`eq.${userId}`);
+    // PATCH from .update().eq() must NOT carry select params (no chained .select()).
+    expect(url.searchParams.get("select")).toBeNull();
+    // No single-row coercion on the update path.
+    expect(patchReq.headers["accept"] ?? "").not.toMatch(/vnd\.pgrst\.object/);
 
     expect(patchReq.body).toMatchObject({
       name: "Lerato",
@@ -265,8 +279,84 @@ describe("Integration: real Supabase query shape — StudentDashboard fetch", ()
     expect(url.pathname).toBe("/rest/v1/profiles");
     expect(url.searchParams.get("select")).toBe("*");
     expect(url.searchParams.get("user_id")).toBe(`eq.${userId}`);
-    expect(req.headers["accept"]).toMatch(/application\/vnd\.pgrst\.object/);
+    // .maybeSingle() in this supabase-js version unwraps client-side; it must
+    // NOT request the PostgREST single-object representation (which 406s on 0 rows).
+    expect(req.headers["accept"] ?? "").not.toMatch(/vnd\.pgrst\.object/);
+    expect(url.searchParams.get("limit")).toBeNull();
 
+    // Initials render only if .maybeSingle() actually unwrapped the array → "SK".
     await waitFor(() => expect(screen.getByText("SK")).toBeInTheDocument());
+  });
+
+  it("treats an empty array as null without erroring (.maybeSingle() 0-row contract)", async () => {
+    // PostgREST returns [] when no row matches. .maybeSingle() must resolve
+    // with data: null (not throw), which the dashboard renders as "?" initials.
+    setNextResponse({ status: 200, body: [] });
+
+    renderWith(<StudentDashboard />);
+
+    await waitFor(() =>
+      expect(captured.some((r) => r.url.includes("/profiles"))).toBe(true),
+    );
+
+    // No crash, fallback initials shown.
+    await waitFor(() => expect(screen.getByText("?")).toBeInTheDocument());
+  });
+});
+
+describe("Integration: PostgREST single-row contract — direct client probe", () => {
+  // These tests exercise the supabase client directly (no UI) to lock in the
+  // wire-level differences between .single(), .maybeSingle(), and a plain
+  // select. If a future supabase-js upgrade changes this contract, the UI
+  // tests above will need to change too — these probes will tell us first.
+  it(".single() sends Accept: application/vnd.pgrst.object+json", async () => {
+    setNextResponse({
+      status: 200,
+      body: { id: "p1", user_id: userId, name: "X", surname: "Y" },
+    });
+
+    const { error } = await realClient
+      .from("profiles")
+      .select("*")
+      .eq("user_id", userId)
+      .single();
+
+    expect(error).toBeNull();
+    const req = captured.at(-1)!;
+    expect(req.method).toBe("GET");
+    expect(req.headers["accept"]).toMatch(/application\/vnd\.pgrst\.object\+json/);
+  });
+
+  it(".maybeSingle() does NOT send the pgrst.object Accept header", async () => {
+    setNextResponse({ status: 200, body: [] });
+
+    const { data, error } = await realClient
+      .from("profiles")
+      .select("*")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    // 0 rows → data must be null, not an error.
+    expect(error).toBeNull();
+    expect(data).toBeNull();
+    const req = captured.at(-1)!;
+    expect(req.headers["accept"] ?? "").not.toMatch(/vnd\.pgrst\.object/);
+  });
+
+  it("plain .select() returns an array and uses no single-row coercion", async () => {
+    setNextResponse({
+      status: 200,
+      body: [{ id: "p1", user_id: userId, name: "A", surname: "B" }],
+    });
+
+    const { data, error } = await realClient
+      .from("profiles")
+      .select("*")
+      .eq("user_id", userId);
+
+    expect(error).toBeNull();
+    expect(Array.isArray(data)).toBe(true);
+    const req = captured.at(-1)!;
+    expect(req.headers["accept"] ?? "").not.toMatch(/vnd\.pgrst\.object/);
   });
 });
