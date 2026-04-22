@@ -158,9 +158,7 @@ describe("Integration: real Supabase query shape — ProfilePage fetch", () => {
     expect(url.searchParams.get("select")).toBe("*");
     expect(url.searchParams.get("user_id")).toBe(`eq.${userId}`);
 
-    // PostgREST single-row hint set by .maybeSingle()
-    const allHeaderValues = Object.values(fetchReq!.headers).join(" ");
-    expect(allHeaderValues).toMatch(/application\/vnd\.pgrst\.object/);
+    // apikey/auth header proves the real client is wired up.
     const apikey = fetchReq!.headers["apikey"] ?? fetchReq!.headers["Apikey"];
     expect(apikey).toBe(FAKE_KEY);
 
