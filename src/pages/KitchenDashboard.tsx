@@ -28,7 +28,7 @@ const SCANNER_ID = "kitchen-qr-scanner";
 const KitchenDashboard = () => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
-  const { isKitchen, loading: rolesLoading } = useUserRoles();
+  const { isKitchen, isAdmin, loading: rolesLoading } = useUserRoles();
   const { toast } = useToast();
 
   const [scanning, setScanning] = useState(false);
@@ -194,12 +194,22 @@ const KitchenDashboard = () => {
             <h1 className="font-serif text-xl text-foreground leading-tight">Service Console</h1>
           </div>
         </div>
-        <button
-          onClick={() => signOut().then(() => navigate("/auth"))}
-          className="text-toast hover:text-brass text-sm"
-        >
-          Sign out
-        </button>
+        <div className="flex items-center gap-2">
+          {isAdmin && (
+            <button
+              onClick={() => navigate("/admin")}
+              className="text-toast hover:text-brass text-sm"
+            >
+              Admin
+            </button>
+          )}
+          <button
+            onClick={() => signOut().then(() => navigate("/auth"))}
+            className="text-toast hover:text-brass text-sm"
+          >
+            Sign out
+          </button>
+        </div>
       </header>
 
       <main className="px-5 flex flex-col gap-6 mt-2">
