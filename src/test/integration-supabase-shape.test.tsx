@@ -285,7 +285,7 @@ describe("Integration: real Supabase query shape — StudentDashboard fetch", ()
     expect(url.searchParams.get("limit")).toBeNull();
 
     // Initials render only if .maybeSingle() actually unwrapped the array → "SK".
-    await waitFor(() => expect(screen.getByText("SK")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId("user-initials")).toHaveTextContent("SK"));
   });
 
   it("treats an empty array as null without erroring (.maybeSingle() 0-row contract)", async () => {
@@ -300,7 +300,7 @@ describe("Integration: real Supabase query shape — StudentDashboard fetch", ()
     );
 
     // No crash, fallback initials shown.
-    await waitFor(() => expect(screen.getByText("?")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId("user-initials")).toHaveTextContent("?"));
   });
 });
 

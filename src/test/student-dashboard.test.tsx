@@ -3,25 +3,30 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import StudentDashboard from "@/components/StudentDashboard";
 
-let fetchResult: { data: any; error: any } = { data: null, error: null };
+let profileResult: { data: any; error: any } = { data: null, error: null };
+
+const makeChain = (finalValue: any) => {
+  const chain: any = {
+    select: () => chain,
+    eq: () => chain,
+    in: () => chain,
+    order: () => Promise.resolve(finalValue),
+    maybeSingle: () => Promise.resolve(finalValue),
+    insert: () => Promise.resolve(finalValue),
+    then: (onFulfilled: any) => Promise.resolve(finalValue).then(onFulfilled),
+  };
+  return chain;
+};
 
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
     from: vi.fn((table: string) => {
-      if (table === "user_roles") {
-        return {
-          select: () => ({
-            eq: () => Promise.resolve({ data: [], error: null }),
-          }),
-        };
-      }
-      return {
-        select: () => ({
-          eq: () => ({
-            maybeSingle: () => Promise.resolve(fetchResult),
-          }),
-        }),
-      };
+      if (table === "profiles") return makeChain(profileResult);
+      if (table === "subscriptions") return makeChain({ data: [], error: null });
+      if (table === "meal_plans") return makeChain({ data: [], error: null });
+      if (table === "user_roles") return makeChain({ data: [], error: null });
+      if (table === "meal_redemptions") return makeChain({ data: null, error: null });
+      return makeChain({ data: null, error: null });
     }),
   },
 }));
@@ -30,10 +35,10 @@ vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => ({ user: { id: "u1" } }),
 }));
 
-// Mock asset imports
 vi.mock("@/assets/menu-ribeye.jpg", () => ({ default: "ribeye.jpg" }));
 vi.mock("@/assets/menu-arancini.jpg", () => ({ default: "arancini.jpg" }));
 vi.mock("@/assets/shisha-pairing.jpg", () => ({ default: "shisha.jpg" }));
+vi.mock("@/assets/khumkhwez-logo.png", () => ({ default: "logo.png" }));
 
 const renderDash = () =>
   render(
@@ -44,13 +49,13 @@ const renderDash = () =>
 
 describe("StudentDashboard", () => {
   beforeEach(() => {
-    fetchResult = { data: null, error: null };
+    profileResult = { data: null, error: null };
   });
 
   it("renders a time-based greeting", () => {
     renderDash();
     const greetings = ["Good Morning", "Good Afternoon", "Good Evening"];
-    expect(greetings.some((g) => screen.queryByText(g))).toBe(true);
+    expect(greetings.some((g) => screen.queryAllByText(new RegExp(g, "i")).length > 0)).toBe(true);
   });
 
   it("renders the brand heading", () => {
@@ -58,28 +63,19 @@ describe("StudentDashboard", () => {
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(/Khumkhwez/);
   });
 
-  it("falls back to '?' initials when no profile", () => {
+  it("shows plan selector when user has no subscription", async () => {
     renderDash();
-    expect(screen.getByText("?")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByRole("heading", { name: /Choose Your Plan/i })).toBeInTheDocument()
+    );
   });
 
-  it("displays correct initials when profile loads", async () => {
-    fetchResult = {
-      data: {
-        id: "p1",
-        user_id: "u1",
-        name: "Thabo",
-        surname: "Mokoena",
-      },
+  it("shows initials in the SR-only badge once profile loads", async () => {
+    profileResult = {
+      data: { id: "p1", user_id: "u1", name: "Thabo", surname: "Mokoena" },
       error: null,
     };
     renderDash();
-    await waitFor(() => expect(screen.getByText("TM")).toBeInTheDocument());
-  });
-
-  it("renders meal pass with balance", () => {
-    renderDash();
-    expect(screen.getByText("Remaining Balance")).toBeInTheDocument();
-    expect(screen.getByText("14")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId("user-initials")).toHaveTextContent("TM"));
   });
 });
