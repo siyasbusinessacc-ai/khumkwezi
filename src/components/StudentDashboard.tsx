@@ -212,19 +212,14 @@ const StudentDashboard = () => {
 
   return (
     <div className="min-h-dvh bg-background pb-24">
-      <header className="px-5 pt-8 pb-4 flex justify-between items-end">
-        <div className="flex items-end gap-3">
-          <Logo size={64} />
-          <div>
-            <p className="text-toast text-sm font-medium tracking-wide uppercase mb-1">{greeting}</p>
-            <h1 className="font-serif text-2xl sm:text-3xl font-medium tracking-tight text-foreground leading-tight">
-              Welcome
-            </h1>
-          </div>
+      <header className="px-5 pt-8 pb-4 flex flex-col items-center gap-4">
+        <Logo size={120} />
+        <div className="text-center">
+          <p className="text-toast text-sm font-medium tracking-wide uppercase mb-1">{greeting}</p>
+          <h1 className="font-serif text-3xl sm:text-4xl font-medium tracking-tight text-foreground leading-tight">
+            Khumkhwez Now
+          </h1>
         </div>
-        <button onClick={() => navigate("/profile")} className="size-11 rounded-full bg-secondary flex items-center justify-center shrink-0 ring-1 ring-border hover:ring-primary transition-colors">
-          <span className="font-serif text-brass text-base">{initials}</span>
-        </button>
       </header>
 
       <main className="px-5 flex flex-col gap-8 mt-2">
