@@ -214,11 +214,11 @@ const StudentDashboard = () => {
     <div className="min-h-dvh bg-background pb-24">
       <header className="px-5 pt-8 pb-4 flex justify-between items-end">
         <div className="flex items-end gap-3">
-          <Logo size={48} />
+          <Logo size={64} />
           <div>
             <p className="text-toast text-sm font-medium tracking-wide uppercase mb-1">{greeting}</p>
             <h1 className="font-serif text-2xl sm:text-3xl font-medium tracking-tight text-foreground leading-tight">
-              Khumkhwez<br />Dine & Shisha
+              Welcome
             </h1>
           </div>
         </div>
