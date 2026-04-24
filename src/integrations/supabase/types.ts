@@ -269,6 +269,72 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_activate_subscription: {
+        Args: {
+          _end_date?: string
+          _plan_id: string
+          _start_date?: string
+          _target_user: string
+        }
+        Returns: Json
+      }
+      admin_cancel_subscription: {
+        Args: { _subscription_id: string }
+        Returns: Json
+      }
+      admin_dashboard_stats: { Args: never; Returns: Json }
+      admin_find_user_by_email: {
+        Args: { _email: string }
+        Returns: {
+          email: string
+          name: string
+          student_number: string
+          surname: string
+          user_id: string
+        }[]
+      }
+      admin_grant_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _target_user: string
+        }
+        Returns: Json
+      }
+      admin_list_users: {
+        Args: { _limit?: number; _search?: string }
+        Returns: {
+          active_end_date: string
+          active_plan_name: string
+          active_subscription_id: string
+          email: string
+          name: string
+          roles: Database["public"]["Enums"]["app_role"][]
+          student_number: string
+          surname: string
+          user_id: string
+        }[]
+      }
+      admin_recent_redemptions: {
+        Args: { _limit?: number }
+        Returns: {
+          id: string
+          name: string
+          redeemed_at: string
+          redeemed_on: string
+          served_by_name: string
+          student_number: string
+          surname: string
+          user_id: string
+        }[]
+      }
+      admin_revoke_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _target_user: string
+        }
+        Returns: Json
+      }
+      claim_first_admin: { Args: never; Returns: Json }
       get_or_create_referral_code: { Args: never; Returns: string }
       has_role: {
         Args: {
