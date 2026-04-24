@@ -8,6 +8,7 @@ import Index from "./pages/Index";
 import AuthPage from "./pages/AuthPage";
 import ProfilePage from "./pages/ProfilePage";
 import KitchenDashboard from "./pages/KitchenDashboard";
+import AdminDashboard from "./pages/AdminDashboard";
 import ReferralPage from "./pages/ReferralPage";
 import NotFound from "./pages/NotFound";
 
@@ -39,6 +40,7 @@ const App = () => (
             <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
             <Route path="/kitchen" element={<ProtectedRoute><KitchenDashboard /></ProtectedRoute>} />
+            <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
             <Route path="/refer" element={<ProtectedRoute><ReferralPage /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
