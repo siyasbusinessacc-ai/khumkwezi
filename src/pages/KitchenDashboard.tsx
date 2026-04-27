@@ -7,20 +7,16 @@ import { useUserRoles } from "@/hooks/useUserRoles";
 import { useToast } from "@/hooks/use-toast";
 import { Logo } from "@/components/Logo";
 
-type LookupResult = {
-  profile: {
-    user_id: string;
-    name: string | null;
-    surname: string | null;
-    student_number: string | null;
-  };
-  subscription: {
-    id: string;
-    plan_name: string;
-    allowed_weekdays: number[];
-    end_date: string | null;
-  } | null;
-  todayRedemption: { id: string } | null;
+type VerifyResult = {
+  ok: boolean;
+  status: "eligible" | "already_served" | "unpaid" | "not_eligible" | "invalid" | "error";
+  name: string | null;
+  surname: string | null;
+  plan_name: string | null;
+  valid_until: string | null;
+  subscription_id: string | null;
+  user_id: string | null;
+  message: string;
 };
 
 const SCANNER_ID = "kitchen-qr-scanner";
@@ -32,8 +28,8 @@ const KitchenDashboard = () => {
   const { toast } = useToast();
 
   const [scanning, setScanning] = useState(false);
-  const [manualId, setManualId] = useState("");
-  const [lookup, setLookup] = useState<LookupResult | null>(null);
+  const [manualPass, setManualPass] = useState("");
+  const [lookup, setLookup] = useState<VerifyResult | null>(null);
   const [busy, setBusy] = useState(false);
   const scannerRef = useRef<Html5Qrcode | null>(null);
 
@@ -46,53 +42,51 @@ const KitchenDashboard = () => {
     };
   }, []);
 
-  const lookupStudent = async (userId: string) => {
+  const verifyPassCode = async (passCode: string) => {
     setBusy(true);
     setLookup(null);
     try {
-      const { data: profile, error: pErr } = await supabase
-        .from("profiles")
-        .select("user_id, name, surname, student_number")
-        .eq("user_id", userId)
-        .maybeSingle();
+      const { data, error } = await supabase.rpc("verify_pass", {
+        _pass_code: passCode.trim(),
+      });
 
-      if (pErr) throw pErr;
-      if (!profile) {
-        toast({ title: "Student not found", variant: "destructive" });
+      if (error) throw error;
+
+      const result = data as VerifyResult;
+      if (!result) {
+        toast({ title: "Invalid response", variant: "destructive" });
         return;
       }
 
-      const { data: sub } = await supabase
-        .from("subscriptions")
-        .select("id, end_date, meal_plans(name, allowed_weekdays)")
-        .eq("user_id", userId)
-        .eq("status", "active")
-        .maybeSingle();
+      setLookup(result);
 
-      const today = new Date().toISOString().slice(0, 10);
-      const { data: red } = sub
-        ? await supabase
-            .from("meal_redemptions")
-            .select("id")
-            .eq("subscription_id", sub.id)
-            .eq("redeemed_on", today)
-            .maybeSingle()
-        : { data: null };
-
-      setLookup({
-        profile,
-        subscription: sub
-          ? {
-              id: sub.id,
-              plan_name: (sub as any).meal_plans?.name ?? "Plan",
-              allowed_weekdays: (sub as any).meal_plans?.allowed_weekdays ?? [],
-              end_date: sub.end_date,
-            }
-          : null,
-        todayRedemption: red,
-      });
+      if (result.status === "invalid") {
+        toast({
+          title: "QR Code Not Found",
+          description: "This QR code is not recognized.",
+          variant: "destructive",
+        });
+      } else if (result.status === "already_served") {
+        toast({
+          title: "Already Served",
+          description: "This student has already redeemed their meal today.",
+          variant: "destructive",
+        });
+      } else if (result.status === "unpaid") {
+        toast({
+          title: "Payment Required",
+          description: "This student does not have an active subscription.",
+          variant: "destructive",
+        });
+      } else if (result.status === "not_eligible") {
+        toast({
+          title: "Not Eligible Today",
+          description: "This student's plan does not cover today.",
+          variant: "destructive",
+        });
+      }
     } catch (e: any) {
-      toast({ title: "Lookup failed", description: e.message, variant: "destructive" });
+      toast({ title: "Verification failed", description: e.message, variant: "destructive" });
     } finally {
       setBusy(false);
     }
@@ -114,7 +108,7 @@ const KitchenDashboard = () => {
           qr.clear();
           scannerRef.current = null;
           setScanning(false);
-          await lookupStudent(decoded.trim());
+          await verifyPassCode(decoded.trim());
         },
         () => {}
       );
@@ -133,24 +127,36 @@ const KitchenDashboard = () => {
     setScanning(false);
   };
 
-  const redeem = async () => {
-    if (!lookup?.subscription || !user) return;
+  const serveMeal = async () => {
+    if (!lookup || !user) return;
     setBusy(true);
     try {
-      const today = new Date().toISOString().slice(0, 10);
-      const { error } = await supabase.from("meal_redemptions").insert({
-        subscription_id: lookup.subscription.id,
-        user_id: lookup.profile.user_id,
-        redeemed_on: today,
-        redeemed_by: user.id,
+      const { data, error } = await supabase.rpc("serve_meal_by_pass", {
+        _pass_code: manualPass.trim() || lookup.user_id,
+        _kitchen_user_id: user.id,
       });
+
       if (error) throw error;
-      toast({ title: "Meal served", description: `${lookup.profile.name ?? "Student"}'s meal recorded.` });
-      await lookupStudent(lookup.profile.user_id);
+
+      const result = data as any;
+      if (result.ok) {
+        toast({
+          title: "Meal Served",
+          description: `${result.name ?? "Student"}'s meal recorded successfully.`,
+        });
+        setLookup(null);
+        setManualPass("");
+      } else {
+        toast({
+          title: "Failed to serve meal",
+          description: result.message,
+          variant: "destructive",
+        });
+      }
     } catch (e: any) {
       toast({
         title: "Could not record meal",
-        description: e.message?.includes("duplicate") ? "Already redeemed today." : e.message,
+        description: e.message,
         variant: "destructive",
       });
     } finally {
@@ -177,12 +183,10 @@ const KitchenDashboard = () => {
     );
   }
 
-  // Validate the plan covers today
-  const today = new Date();
-  const isoWeekday = ((today.getDay() + 6) % 7) + 1; // 1=Mon..7=Sun
-  const planCoversToday = lookup?.subscription?.allowed_weekdays?.includes(isoWeekday) ?? false;
-  const subActiveByDate =
-    lookup?.subscription?.end_date ? new Date(lookup.subscription.end_date) >= today : true;
+  const isPaid = lookup?.ok === true;
+  const statusBadgeClass = isPaid
+    ? "bg-primary text-primary-foreground"
+    : "bg-destructive/20 text-destructive-foreground";
 
   return (
     <div className="min-h-dvh bg-background pb-24">
@@ -238,21 +242,21 @@ const KitchenDashboard = () => {
 
         {/* Manual lookup */}
         <section className="bg-card rounded-3xl p-6 ring-1 ring-border">
-          <h2 className="font-serif text-lg text-foreground mb-3">Manual lookup</h2>
-          <p className="text-toast text-sm mb-4">Paste a student's user ID if their phone is offline.</p>
+          <h2 className="font-serif text-lg text-foreground mb-3">Manual verification</h2>
+          <p className="text-toast text-sm mb-4">Paste a QR pass code if their phone is offline.</p>
           <div className="flex gap-2">
             <input
-              value={manualId}
-              onChange={(e) => setManualId(e.target.value)}
-              placeholder="user_id"
+              value={manualPass}
+              onChange={(e) => setManualPass(e.target.value)}
+              placeholder="pass_..."
               className="flex-1 bg-input text-foreground rounded-xl px-4 py-3 ring-1 ring-border focus:ring-primary outline-none font-mono text-sm"
             />
             <button
-              onClick={() => manualId.trim() && lookupStudent(manualId.trim())}
-              disabled={!manualId.trim() || busy}
+              onClick={() => manualPass.trim() && verifyPassCode(manualPass.trim())}
+              disabled={!manualPass.trim() || busy}
               className="px-5 py-3 rounded-xl bg-secondary ring-1 ring-border text-foreground hover:ring-primary/40 disabled:opacity-50"
             >
-              Look up
+              Verify
             </button>
           </div>
         </section>
@@ -263,57 +267,38 @@ const KitchenDashboard = () => {
             <div className="flex items-start justify-between mb-5">
               <div>
                 <h3 className="font-serif text-2xl text-foreground">
-                  {lookup.profile.name ?? ""} {lookup.profile.surname ?? ""}
+                  {lookup.name ?? "?"} {lookup.surname ?? ""}
                 </h3>
-                {lookup.profile.student_number && (
-                  <p className="text-toast text-sm mt-1">#{lookup.profile.student_number}</p>
-                )}
               </div>
-              {lookup.todayRedemption ? (
-                <span className="px-3 py-1 rounded-full bg-destructive/20 text-destructive-foreground text-xs font-medium ring-1 ring-destructive/40">
-                  Already served today
-                </span>
-              ) : lookup.subscription && planCoversToday && subActiveByDate ? (
-                <span className="px-3 py-1 rounded-full bg-secondary text-brass text-xs font-medium ring-1 ring-primary/40 uppercase tracking-wide">
-                  Eligible
-                </span>
-              ) : (
-                <span className="px-3 py-1 rounded-full bg-secondary text-toast text-xs font-medium ring-1 ring-border">
-                  Not eligible
-                </span>
-              )}
+              <span
+                className={`px-3 py-1 rounded-full text-xs font-medium ring-1 ${statusBadgeClass}`}
+              >
+                {isPaid ? "✓ PAID" : "✗ " + lookup.status.toUpperCase()}
+              </span>
             </div>
 
-            {lookup.subscription ? (
+            {lookup.plan_name && (
               <div className="space-y-2 mb-5 text-sm">
                 <div className="flex justify-between text-toast">
                   <span>Plan</span>
-                  <span className="text-foreground">{lookup.subscription.plan_name}</span>
+                  <span className="text-foreground">{lookup.plan_name}</span>
                 </div>
-                <div className="flex justify-between text-toast">
-                  <span>Valid through</span>
-                  <span className="text-foreground">{lookup.subscription.end_date ?? "—"}</span>
-                </div>
-                <div className="flex justify-between text-toast">
-                  <span>Today covered?</span>
-                  <span className={planCoversToday ? "text-brass" : "text-foreground"}>
-                    {planCoversToday ? "Yes" : "No"}
-                  </span>
-                </div>
+                {lookup.valid_until && (
+                  <div className="flex justify-between text-toast">
+                    <span>Valid until</span>
+                    <span className="text-foreground">{lookup.valid_until}</span>
+                  </div>
+                )}
               </div>
-            ) : (
-              <p className="text-toast text-sm mb-5">No active subscription.</p>
+            )}
+
+            {lookup.message && (
+              <p className="text-toast text-xs mb-4 italic">{lookup.message}</p>
             )}
 
             <button
-              onClick={redeem}
-              disabled={
-                busy ||
-                !lookup.subscription ||
-                !!lookup.todayRedemption ||
-                !planCoversToday ||
-                !subActiveByDate
-              }
+              onClick={serveMeal}
+              disabled={!isPaid || busy}
               className="w-full bg-primary text-primary-foreground font-semibold py-4 rounded-xl hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {busy ? "Recording…" : "Serve meal"}
