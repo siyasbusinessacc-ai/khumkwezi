@@ -18,7 +18,7 @@ const AuthContext = createContext<AuthContextType>({
 
 export const useAuth = () => useContext(AuthContext);
 
-const BOOTSTRAP_EMAIL = "Siyasbusinessacc@gmail.com";
+const BOOTSTRAP_EMAIL = "siyasbusinessacc@gmail.com";
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
