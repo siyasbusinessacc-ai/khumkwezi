@@ -54,11 +54,11 @@ const AuthPage = () => {
     setLoading(true);
     try {
       if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
-          email: email.trim(),
-          password,
-          options: { emailRedirectTo: window.location.origin },
-        });
+const { error } = await supabase.auth.signUp({
+  email: email.trim(),
+  password,
+  options: { emailRedirectTo: 'https://khumkhwez.pages.dev/auth/callback' },
+});
         if (error) throw error;
         toast({ title: "Check your email", description: "We sent you a confirmation link." });
       } else {
