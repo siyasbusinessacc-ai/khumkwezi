@@ -42,6 +42,7 @@ const App = () => (
             <Route path="/kitchen" element={<ProtectedRoute><KitchenDashboard /></ProtectedRoute>} />
             <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
             <Route path="/refer" element={<ProtectedRoute><ReferralPage /></ProtectedRoute>} />
+            <Route path="/auth/callback" element={<AuthPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
