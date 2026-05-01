@@ -1,70 +1,57 @@
-# Daily Paid/Unpaid QR Pass
+# Fix: Implement Permanent QR Verification
 
-## What this does
-Every student gets a QR code on their dashboard that **changes daily**. When kitchen staff scan it, they instantly see a big **PAID ✓** or **UNPAID ✗** screen with the student's name, plan, and whether they've already eaten today.
+## The error
+> Could not find the function `public.verify_pass(_pass_code)` in the schema cache
 
-This works whether payment came from iKhokha (later), cash (admin activation), or any other method — the system only cares whether their subscription is `active` for today.
+The kitchen scanner is trying to call a database function that doesn't exist yet. Nothing in the database or backend has been built for the permanent QR flow — only the conversation plan exists. This change actually builds it.
 
-## How it works (flow)
+## What gets built (minimum to make scanning work)
 
-```text
-Student opens app
-    │
-    ▼
-App requests today's pass token  ──►  Edge function `issue-pass-token`
-    │                                     • verifies user logged in
-    │                                     • signs { user_id, date } with secret
-    │                                     • returns short token
-    ▼
-QR shows token (rotates daily, expires at midnight SAST)
-    │
-    ▼
-Kitchen scans QR
-    │
-    ▼
-App calls `verify-pass-token`  ──►  Edge function
-    │                                 • verifies signature + date == today
-    │                                 • looks up active subscription
-    │                                 • checks today's weekday is covered
-    │                                 • checks not already redeemed today
-    │                                 • returns { paid, eligible, name, plan, alreadyServed }
-    ▼
-Kitchen sees full-screen result:
-    🟢 PAID — Serve meal     [Confirm]
-    🔴 UNPAID — Refuse
-    🟡 ALREADY SERVED TODAY
-```
+### 1. Database migration
+- Add `pass_code text unique` column to `profiles`
+- Backfill: every existing student gets a generated 8-char code (no ambiguous chars: no 0/O/1/I/l)
+- Trigger on profile insert: auto-generate `pass_code` for new students
+- New RPC **`verify_pass(_pass_code text)`** — kitchen/admin only. Returns:
+  ```json
+  {
+    "found": true,
+    "user_id": "...", "name": "...", "surname": "...", "student_number": "...",
+    "paid": true, "eligible": true, "already_served_today": false,
+    "plan_name": "Weekday Lunch", "valid_until": "2026-05-25",
+    "reason": null
+  }
+  ```
+  `reason` is one of: `no_subscription`, `expired`, `plan_off_today`, `already_served`, or null when fully eligible.
+- New RPC **`serve_meal_by_pass(_pass_code text)`** — kitchen/admin only, atomic verify + insert into `meal_redemptions`. Returns same verdict shape.
+- New RPC **`admin_reissue_pass_code(_target_user uuid)`** — admin only, rotates the code.
 
-## Changes
+### 2. Student dashboard
+- QR encodes `pass_code` instead of `user_id`
+- Adds a status banner above the QR:
+  - Green "PAID — Valid until {date}" when subscription is active
+  - Amber "Awaiting payment" otherwise
 
-### 1. Backend — two edge functions
-- **`issue-pass-token`** (auth required): signs `{user_id, yyyy-mm-dd}` using HMAC with a `PASS_TOKEN_SECRET`. Returns base64 token like `eyJ1IjoiYWJjIiwiZCI6IjIwMjYtMDQtMjUifQ.SIG`.
-- **`verify-pass-token`** (auth required, kitchen/admin only): validates signature, checks date == today (Africa/Johannesburg), then queries subscription + today's redemption. Returns a clean verdict.
+### 3. Kitchen dashboard
+- After scan, call `verify_pass(code)` instead of doing client-side table lookups
+- Replace the result card with a full-screen verdict:
+  - 🟢 GREEN PAID + "Serve meal" button → calls `serve_meal_by_pass`
+  - 🔴 RED UNPAID + reason text
+  - 🟡 AMBER ALREADY SERVED TODAY
+- "Scan next" button to clear and reopen camera
+- Manual paste-code fallback kept
 
-### 2. Database (migration)
-- Add `serve_meal_by_token(_token text)` RPC — atomic: verify + insert redemption in one call so kitchen can tap one button.
-
-### 3. Student dashboard
-- Replace the static `userId` QR with the daily token (auto-refreshes when day changes).
-- Add a clear **PAID badge** above the QR: green "Paid — Active until {date}" or amber "Awaiting payment".
-- Add a small "Token refreshes at midnight" hint.
-
-### 4. Kitchen dashboard
-- After scan, call `verify-pass-token` instead of doing client-side lookup.
-- Show full-screen verdict card: huge ✓ green PAID or ✗ red UNPAID, student name, plan name, days remaining.
-- "Serve meal" button calls `serve_meal_by_token` — single atomic action.
-- Manual lookup (paste user_id) still works as fallback for offline phones.
-
-### 5. Secret
-- Add `PASS_TOKEN_SECRET` (random 32-byte string) — I'll request this when implementing.
-
-## What it does NOT do
-- Not a payment QR (no money flows through it). iKhokha integration is still separate.
-- Doesn't replace the admin manual cash activation — that flow stays.
+### 4. Admin dashboard
+- "Reissue QR" action on each user row → calls `admin_reissue_pass_code` with confirmation
 
 ## Files touched
-- New: `supabase/functions/issue-pass-token/index.ts`
-- New: `supabase/functions/verify-pass-token/index.ts`
-- New: migration adding `serve_meal_by_token` RPC
-- Edited: `src/components/StudentDashboard.tsx` (token-based QR + paid banner)
-- Edited: `src/pages/KitchenDashboard.tsx` (verdict screen + token verify)
+- New migration (column + backfill + trigger + 3 RPCs)
+- Edited: `src/components/StudentDashboard.tsx` (QR source + paid banner)
+- Edited: `src/pages/KitchenDashboard.tsx` (RPC call + verdict screen)
+- Edited: `src/pages/AdminDashboard.tsx` (reissue button)
+
+## Out of scope
+- iKhokha / payment wiring (separate task)
+- Cash → admin manual activation (already works)
+- Edge functions (not needed — RLS-protected RPCs are sufficient and simpler)
+
+After this ships you scan a QR and immediately see the verdict — no schema-cache error.
