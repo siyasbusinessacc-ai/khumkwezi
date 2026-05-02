@@ -54,11 +54,11 @@ const AuthPage = () => {
     setLoading(true);
     try {
       if (mode === "signup") {
-const { error } = await supabase.auth.signUp({
-  email: email.trim(),
-  password,
-  options: { emailRedirectTo: 'https://khumkhwez.pages.dev/auth/callback' },
-});
+        const { error } = await supabase.auth.signUp({
+          email: email.trim(),
+          password,
+          options: { emailRedirectTo: 'https://khumkhwez.pages.dev/auth/callback' },
+        });
         if (error) throw error;
         toast({ title: "Check your email", description: "We sent you a confirmation link." });
       } else {
@@ -118,18 +118,15 @@ const { error } = await supabase.auth.signUp({
   const btnPrimary = "w-full bg-primary text-primary-foreground font-semibold py-3 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 text-sm";
 
   return (
-    <div className="min-h-dvh bg-background flex flex-col items-center justify-center px-5">
+    <div className="min-h-dvh bg-background flex flex-col items-center justify-center px-5 py-12">
       <div className="w-full max-w-sm flex flex-col gap-8">
-        {/* Brand */}
-        <div className="text-center flex flex-col items-center gap-3">
-          <Logo size={64} />
-          <div>
-            <p className="text-toast text-sm font-medium tracking-wide uppercase mb-1">Welcome to</p>
-            <h1 className="font-serif text-3xl font-medium tracking-tight text-foreground">
-              Khumkhwez
-            </h1>
-            <p className="text-toast text-sm mt-1">Dine & Shisha House</p>
-          </div>
+        {/* Brand - Styled for maximum impact */}
+        <div className="text-center flex flex-col items-center gap-6">
+          <h1 className="font-serif text-4xl sm:text-5xl font-medium tracking-tight text-foreground">
+            Welcome to...
+          </h1>
+          <Logo size={280} className="mt-2" />
+          
           {referralCode && (
             <div className="mt-2 px-3 py-1.5 rounded-full bg-secondary ring-1 ring-primary/40">
               <span className="text-xs text-brass tracking-wider uppercase">Referral: {referralCode}</span>

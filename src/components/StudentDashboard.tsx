@@ -404,20 +404,27 @@ const StudentDashboard = () => {
     ? `${(profile.name?.[0] || "").toUpperCase()}${(profile.surname?.[0] || "").toUpperCase()}` || "?"
     : "?";
 
+  const greeting =
+    new Date().getHours() < 12 ? "Good Morning" : new Date().getHours() < 17 ? "Good Afternoon" : "Good Evening";
+
   return (
     <div className="min-h-dvh bg-background pb-12">
       <Sidebar />
-      <header className="px-5 pt-12 pb-8 flex flex-col items-center gap-6">
-        <div className="text-center space-y-2">
-          <h1 className="font-serif text-4xl sm:text-5xl font-medium tracking-tight text-foreground">
-            Welcome to...
+      <header className="px-5 pt-8 pb-4 flex flex-col items-center gap-4">
+        <Logo size={120} />
+        <div className="text-center">
+          <p className="text-toast text-sm font-medium tracking-wide uppercase mb-1">
+            {greeting}
+            {profile?.name ? `, ${profile.name}` : ""}
+          </p>
+          <h1 className="font-serif text-3xl sm:text-4xl font-medium tracking-tight text-foreground leading-tight">
+            Khumkhwez Now
           </h1>
         </div>
-        <Logo size={240} className="mt-2" />
         <span className="sr-only" data-testid="user-initials">{initials}</span>
       </header>
 
-      <main className="px-5 flex flex-col gap-8 mt-4 max-w-2xl mx-auto">
+      <main className="px-5 flex flex-col gap-8 mt-2 max-w-2xl mx-auto">
         {loadingSub ? (
           <div className="bg-card rounded-3xl p-8 ring-1 ring-border text-center">
             <p className="text-toast text-sm">Loading your pass…</p>
