@@ -477,6 +477,7 @@ const StudentDashboard = () => {
       </header>
 
       <main className="px-5 flex flex-col gap-8 mt-2 max-w-2xl mx-auto">
+        {wallet && <WalletTierCard summary={wallet} />}
         {loadingSub ? (
           <div className="bg-card rounded-3xl p-8 ring-1 ring-border text-center">
             <p className="text-toast text-sm">Loading your pass…</p>
