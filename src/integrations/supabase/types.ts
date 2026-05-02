@@ -14,6 +14,24 @@ export type Database = {
   }
   public: {
     Tables: {
+      credit_caps: {
+        Row: {
+          max_credit_cents: number
+          plan_id: string
+          updated_at: string
+        }
+        Insert: {
+          max_credit_cents?: number
+          plan_id: string
+          updated_at?: string
+        }
+        Update: {
+          max_credit_cents?: number
+          plan_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       meal_plans: {
         Row: {
           allowed_weekdays: number[]
@@ -92,6 +110,7 @@ export type Database = {
         Row: {
           avatar_url: string | null
           created_at: string
+          discount_wallet_balance_cents: number
           email: string | null
           emergency_contact_name: string | null
           emergency_contact_phone: string | null
@@ -102,12 +121,14 @@ export type Database = {
           secondary_phone: string | null
           student_number: string | null
           surname: string | null
+          tier: Database["public"]["Enums"]["user_tier"]
           updated_at: string
           user_id: string
         }
         Insert: {
           avatar_url?: string | null
           created_at?: string
+          discount_wallet_balance_cents?: number
           email?: string | null
           emergency_contact_name?: string | null
           emergency_contact_phone?: string | null
@@ -118,12 +139,14 @@ export type Database = {
           secondary_phone?: string | null
           student_number?: string | null
           surname?: string | null
+          tier?: Database["public"]["Enums"]["user_tier"]
           updated_at?: string
           user_id: string
         }
         Update: {
           avatar_url?: string | null
           created_at?: string
+          discount_wallet_balance_cents?: number
           email?: string | null
           emergency_contact_name?: string | null
           emergency_contact_phone?: string | null
@@ -134,6 +157,7 @@ export type Database = {
           secondary_phone?: string | null
           student_number?: string | null
           surname?: string | null
+          tier?: Database["public"]["Enums"]["user_tier"]
           updated_at?: string
           user_id?: string
         }
@@ -166,30 +190,45 @@ export type Database = {
           completed_at: string | null
           created_at: string
           id: string
+          paid_at: string | null
+          plan_id: string | null
           referred_user_id: string
           referrer_user_id: string
           reward_cents: number
+          rewarded_at: string | null
+          signed_up_at: string | null
           status: string
+          subscription_id: string | null
         }
         Insert: {
           code_used: string
           completed_at?: string | null
           created_at?: string
           id?: string
+          paid_at?: string | null
+          plan_id?: string | null
           referred_user_id: string
           referrer_user_id: string
           reward_cents?: number
+          rewarded_at?: string | null
+          signed_up_at?: string | null
           status?: string
+          subscription_id?: string | null
         }
         Update: {
           code_used?: string
           completed_at?: string | null
           created_at?: string
           id?: string
+          paid_at?: string | null
+          plan_id?: string | null
           referred_user_id?: string
           referrer_user_id?: string
           reward_cents?: number
+          rewarded_at?: string | null
+          signed_up_at?: string | null
           status?: string
+          subscription_id?: string | null
         }
         Relationships: []
       }
@@ -246,6 +285,24 @@ export type Database = {
           },
         ]
       }
+      tier_config: {
+        Row: {
+          min_paid_referrals: number
+          tier: Database["public"]["Enums"]["user_tier"]
+          updated_at: string
+        }
+        Insert: {
+          min_paid_referrals: number
+          tier: Database["public"]["Enums"]["user_tier"]
+          updated_at?: string
+        }
+        Update: {
+          min_paid_referrals?: number
+          tier?: Database["public"]["Enums"]["user_tier"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -263,6 +320,39 @@ export type Database = {
           created_at?: string
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      wallet_transactions: {
+        Row: {
+          balance_after_cents: number
+          created_at: string
+          delta_cents: number
+          id: string
+          notes: string | null
+          reason: string
+          reference_id: string | null
+          user_id: string
+        }
+        Insert: {
+          balance_after_cents: number
+          created_at?: string
+          delta_cents: number
+          id?: string
+          notes?: string | null
+          reason: string
+          reference_id?: string | null
+          user_id: string
+        }
+        Update: {
+          balance_after_cents?: number
+          created_at?: string
+          delta_cents?: number
+          id?: string
+          notes?: string | null
+          reason?: string
+          reference_id?: string | null
           user_id?: string
         }
         Relationships: []
@@ -330,6 +420,20 @@ export type Database = {
           user_id: string
         }[]
       }
+      admin_referral_tree: {
+        Args: { _limit?: number }
+        Returns: {
+          paid_referrals: number
+          pending_referrals: number
+          referrer_email: string
+          referrer_name: string
+          referrer_surname: string
+          referrer_tier: Database["public"]["Enums"]["user_tier"]
+          referrer_user_id: string
+          referrer_wallet_cents: number
+          total_reward_cents: number
+        }[]
+      }
       admin_reissue_pass_code: { Args: { _target_user: string }; Returns: Json }
       admin_revoke_role: {
         Args: {
@@ -338,8 +442,23 @@ export type Database = {
         }
         Returns: Json
       }
+      apply_wallet_credit_to_subscription: {
+        Args: { _subscription_id: string }
+        Returns: Json
+      }
       claim_first_admin: { Args: never; Returns: Json }
+      credit_wallet: {
+        Args: {
+          _delta: number
+          _notes?: string
+          _reason: string
+          _ref?: string
+          _user: string
+        }
+        Returns: number
+      }
       generate_qr_pass_code: { Args: never; Returns: string }
+      get_my_wallet_summary: { Args: never; Returns: Json }
       get_or_create_referral_code: { Args: never; Returns: string }
       has_role: {
         Args: {
@@ -349,9 +468,14 @@ export type Database = {
         Returns: boolean
       }
       redeem_referral_code: { Args: { _code: string }; Returns: Json }
+      referral_reward_for_count: { Args: { _count: number }; Returns: number }
       serve_meal_by_pass: {
         Args: { _kitchen_user_id?: string; _pass_code: string }
         Returns: Json
+      }
+      tier_for_paid_count: {
+        Args: { _count: number }
+        Returns: Database["public"]["Enums"]["user_tier"]
       }
       verify_pass: { Args: { _pass_code: string }; Returns: Json }
     }
@@ -363,6 +487,7 @@ export type Database = {
         | "expired"
         | "failed"
         | "cancelled"
+      user_tier: "bronze" | "silver" | "gold" | "elite"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -498,6 +623,7 @@ export const Constants = {
         "failed",
         "cancelled",
       ],
+      user_tier: ["bronze", "silver", "gold", "elite"],
     },
   },
 } as const
