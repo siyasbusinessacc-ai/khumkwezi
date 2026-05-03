@@ -62,8 +62,11 @@ const ReferralPage = () => {
         .eq("referrer_user_id", user.id)
         .order("created_at", { ascending: false });
 
+      const { data: ws } = await (supabase as any).rpc("get_my_wallet_summary");
+
       if (!cancelled) {
         setReferrals((refs ?? []) as ReferralRow[]);
+        if (ws) setWallet(ws as WalletSummary);
         setLoading(false);
       }
     })();
