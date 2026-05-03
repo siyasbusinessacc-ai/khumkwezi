@@ -15,6 +15,25 @@ type ReferralRow = {
   referred_user_id: string;
 };
 
+type WalletSummary = {
+  balance_cents: number;
+  tier: "bronze" | "silver" | "gold" | "elite";
+  paid_referrals: number;
+  current_tier_min: number;
+  next_tier: "bronze" | "silver" | "gold" | "elite" | null;
+  next_tier_min: number | null;
+};
+
+const TIER_STYLES: Record<WalletSummary["tier"], string> = {
+  bronze: "bg-amber-900/30 text-amber-200 ring-amber-700/40",
+  silver: "bg-slate-500/20 text-slate-100 ring-slate-400/40",
+  gold: "bg-amber-500/20 text-amber-200 ring-amber-400/50",
+  elite: "bg-gradient-to-r from-amber-500/30 to-amber-200/20 text-amber-100 ring-amber-300/60",
+};
+
+const formatRand = (cents: number) =>
+  `R${(cents / 100).toLocaleString("en-ZA", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+
 const ReferralPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -22,6 +41,7 @@ const ReferralPage = () => {
 
   const [code, setCode] = useState<string | null>(null);
   const [referrals, setReferrals] = useState<ReferralRow[]>([]);
+  const [wallet, setWallet] = useState<WalletSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
