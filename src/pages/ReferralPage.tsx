@@ -101,6 +101,40 @@ const ReferralPage = () => {
       </header>
 
       <main className="px-5 flex flex-col gap-6 mt-2 max-w-2xl mx-auto">
+        {wallet && (
+          <section className="bg-card rounded-3xl p-5 sm:p-6 ring-1 ring-border flex flex-col gap-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-toast text-xs uppercase tracking-wide font-medium">Wallet</p>
+                <p className="font-serif text-3xl text-brass tabular-nums mt-1">{formatRand(wallet.balance_cents)}</p>
+              </div>
+              <div className={`px-3 py-1.5 rounded-full ring-1 text-xs font-semibold uppercase tracking-wider ${TIER_STYLES[wallet.tier]}`}>
+                {wallet.tier}
+              </div>
+            </div>
+            <div>
+              <div className="flex justify-between text-xs text-toast mb-1.5">
+                <span>{wallet.paid_referrals} paid referral{wallet.paid_referrals === 1 ? "" : "s"}</span>
+                {wallet.next_tier && wallet.next_tier_min !== null && (
+                  <span>{wallet.next_tier_min - wallet.paid_referrals} to {wallet.next_tier}</span>
+                )}
+              </div>
+              <div className="h-2 rounded-full bg-secondary overflow-hidden">
+                <div
+                  className="h-full bg-primary transition-all"
+                  style={{
+                    width: `${
+                      wallet.next_tier && wallet.next_tier_min
+                        ? Math.min(100, Math.round((wallet.paid_referrals / wallet.next_tier_min) * 100))
+                        : 100
+                    }%`,
+                  }}
+                />
+              </div>
+            </div>
+          </section>
+        )}
+
         {/* Code card */}
         <section className="bg-card rounded-3xl p-6 ring-1 ring-border relative overflow-hidden">
           <div className="absolute -top-24 -right-24 size-64 bg-amber-dim rounded-full blur-[80px] opacity-25" />
