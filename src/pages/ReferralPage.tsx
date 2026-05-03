@@ -15,6 +15,25 @@ type ReferralRow = {
   referred_user_id: string;
 };
 
+type WalletSummary = {
+  balance_cents: number;
+  tier: "bronze" | "silver" | "gold" | "elite";
+  paid_referrals: number;
+  current_tier_min: number;
+  next_tier: "bronze" | "silver" | "gold" | "elite" | null;
+  next_tier_min: number | null;
+};
+
+const TIER_STYLES: Record<WalletSummary["tier"], string> = {
+  bronze: "bg-amber-900/30 text-amber-200 ring-amber-700/40",
+  silver: "bg-slate-500/20 text-slate-100 ring-slate-400/40",
+  gold: "bg-amber-500/20 text-amber-200 ring-amber-400/50",
+  elite: "bg-gradient-to-r from-amber-500/30 to-amber-200/20 text-amber-100 ring-amber-300/60",
+};
+
+const formatRand = (cents: number) =>
+  `R${(cents / 100).toLocaleString("en-ZA", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+
 const ReferralPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -22,6 +41,7 @@ const ReferralPage = () => {
 
   const [code, setCode] = useState<string | null>(null);
   const [referrals, setReferrals] = useState<ReferralRow[]>([]);
+  const [wallet, setWallet] = useState<WalletSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -42,8 +62,11 @@ const ReferralPage = () => {
         .eq("referrer_user_id", user.id)
         .order("created_at", { ascending: false });
 
+      const { data: ws } = await (supabase as any).rpc("get_my_wallet_summary");
+
       if (!cancelled) {
         setReferrals((refs ?? []) as ReferralRow[]);
+        if (ws) setWallet(ws as WalletSummary);
         setLoading(false);
       }
     })();
@@ -78,6 +101,40 @@ const ReferralPage = () => {
       </header>
 
       <main className="px-5 flex flex-col gap-6 mt-2 max-w-2xl mx-auto">
+        {wallet && (
+          <section className="bg-card rounded-3xl p-5 sm:p-6 ring-1 ring-border flex flex-col gap-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-toast text-xs uppercase tracking-wide font-medium">Wallet</p>
+                <p className="font-serif text-3xl text-brass tabular-nums mt-1">{formatRand(wallet.balance_cents)}</p>
+              </div>
+              <div className={`px-3 py-1.5 rounded-full ring-1 text-xs font-semibold uppercase tracking-wider ${TIER_STYLES[wallet.tier]}`}>
+                {wallet.tier}
+              </div>
+            </div>
+            <div>
+              <div className="flex justify-between text-xs text-toast mb-1.5">
+                <span>{wallet.paid_referrals} paid referral{wallet.paid_referrals === 1 ? "" : "s"}</span>
+                {wallet.next_tier && wallet.next_tier_min !== null && (
+                  <span>{wallet.next_tier_min - wallet.paid_referrals} to {wallet.next_tier}</span>
+                )}
+              </div>
+              <div className="h-2 rounded-full bg-secondary overflow-hidden">
+                <div
+                  className="h-full bg-primary transition-all"
+                  style={{
+                    width: `${
+                      wallet.next_tier && wallet.next_tier_min
+                        ? Math.min(100, Math.round((wallet.paid_referrals / wallet.next_tier_min) * 100))
+                        : 100
+                    }%`,
+                  }}
+                />
+              </div>
+            </div>
+          </section>
+        )}
+
         {/* Code card */}
         <section className="bg-card rounded-3xl p-6 ring-1 ring-border relative overflow-hidden">
           <div className="absolute -top-24 -right-24 size-64 bg-amber-dim rounded-full blur-[80px] opacity-25" />
