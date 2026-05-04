@@ -14,6 +14,62 @@ export type Database = {
   }
   public: {
     Tables: {
+      broadcast_reads: {
+        Row: {
+          broadcast_id: string
+          read_at: string
+          user_id: string
+        }
+        Insert: {
+          broadcast_id: string
+          read_at?: string
+          user_id: string
+        }
+        Update: {
+          broadcast_id?: string
+          read_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "broadcast_reads_broadcast_id_fkey"
+            columns: ["broadcast_id"]
+            isOneToOne: false
+            referencedRelation: "broadcasts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      broadcasts: {
+        Row: {
+          body: string
+          created_at: string
+          created_by: string | null
+          id: string
+          target: string
+          target_tier: Database["public"]["Enums"]["user_tier"] | null
+          title: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          target?: string
+          target_tier?: Database["public"]["Enums"]["user_tier"] | null
+          title: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          target?: string
+          target_tier?: Database["public"]["Enums"]["user_tier"] | null
+          title?: string
+        }
+        Relationships: []
+      }
       credit_caps: {
         Row: {
           max_credit_cents: number
@@ -77,6 +133,7 @@ export type Database = {
           redeemed_at: string
           redeemed_by: string | null
           redeemed_on: string
+          slot_id: string | null
           subscription_id: string
           user_id: string
         }
@@ -85,6 +142,7 @@ export type Database = {
           redeemed_at?: string
           redeemed_by?: string | null
           redeemed_on?: string
+          slot_id?: string | null
           subscription_id: string
           user_id: string
         }
@@ -93,10 +151,18 @@ export type Database = {
           redeemed_at?: string
           redeemed_by?: string | null
           redeemed_on?: string
+          slot_id?: string | null
           subscription_id?: string
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "meal_redemptions_slot_id_fkey"
+            columns: ["slot_id"]
+            isOneToOne: false
+            referencedRelation: "meal_slots"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "meal_redemptions_subscription_id_fkey"
             columns: ["subscription_id"]
@@ -105,6 +171,137 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      meal_slots: {
+        Row: {
+          capacity: number
+          created_at: string
+          end_time: string
+          id: string
+          is_active: boolean
+          label: string
+          start_time: string
+          updated_at: string
+          weekdays: number[]
+        }
+        Insert: {
+          capacity: number
+          created_at?: string
+          end_time: string
+          id?: string
+          is_active?: boolean
+          label: string
+          start_time: string
+          updated_at?: string
+          weekdays?: number[]
+        }
+        Update: {
+          capacity?: number
+          created_at?: string
+          end_time?: string
+          id?: string
+          is_active?: boolean
+          label?: string
+          start_time?: string
+          updated_at?: string
+          weekdays?: number[]
+        }
+        Relationships: []
+      }
+      offer_redemptions: {
+        Row: {
+          applied_cents: number
+          created_at: string
+          id: string
+          offer_id: string
+          subscription_id: string
+          user_id: string
+        }
+        Insert: {
+          applied_cents: number
+          created_at?: string
+          id?: string
+          offer_id: string
+          subscription_id: string
+          user_id: string
+        }
+        Update: {
+          applied_cents?: number
+          created_at?: string
+          id?: string
+          offer_id?: string
+          subscription_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "offer_redemptions_offer_id_fkey"
+            columns: ["offer_id"]
+            isOneToOne: false
+            referencedRelation: "offers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      offers: {
+        Row: {
+          applicable_plan_ids: string[]
+          code: string
+          created_at: string
+          created_by: string | null
+          current_redemptions: number
+          description: string | null
+          discount_type: string
+          discount_value: number
+          ends_at: string | null
+          id: string
+          is_active: boolean
+          max_redemptions: number | null
+          min_subtotal_cents: number
+          name: string
+          per_user_limit: number
+          starts_at: string
+          updated_at: string
+        }
+        Insert: {
+          applicable_plan_ids?: string[]
+          code: string
+          created_at?: string
+          created_by?: string | null
+          current_redemptions?: number
+          description?: string | null
+          discount_type: string
+          discount_value: number
+          ends_at?: string | null
+          id?: string
+          is_active?: boolean
+          max_redemptions?: number | null
+          min_subtotal_cents?: number
+          name: string
+          per_user_limit?: number
+          starts_at?: string
+          updated_at?: string
+        }
+        Update: {
+          applicable_plan_ids?: string[]
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          current_redemptions?: number
+          description?: string | null
+          discount_type?: string
+          discount_value?: number
+          ends_at?: string | null
+          id?: string
+          is_active?: boolean
+          max_redemptions?: number | null
+          min_subtotal_cents?: number
+          name?: string
+          per_user_limit?: number
+          starts_at?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -371,6 +568,7 @@ export type Database = {
         }
         Returns: Json
       }
+      admin_analytics_summary: { Args: { _days?: number }; Returns: Json }
       admin_cancel_subscription: {
         Args: { _subscription_id: string }
         Returns: Json
@@ -467,11 +665,37 @@ export type Database = {
         }
         Returns: boolean
       }
+      list_my_broadcasts: {
+        Args: never
+        Returns: {
+          body: string
+          created_at: string
+          id: string
+          is_read: boolean
+          title: string
+        }[]
+      }
+      redeem_offer_code: {
+        Args: { _code: string; _subscription_id: string }
+        Returns: Json
+      }
       redeem_referral_code: { Args: { _code: string }; Returns: Json }
       referral_reward_for_count: { Args: { _count: number }; Returns: number }
       serve_meal_by_pass: {
         Args: { _kitchen_user_id?: string; _pass_code: string }
         Returns: Json
+      }
+      serve_meal_by_pass_with_slot: {
+        Args: {
+          _kitchen_user_id?: string
+          _pass_code: string
+          _slot_id: string
+        }
+        Returns: Json
+      }
+      slot_remaining_capacity: {
+        Args: { _date: string; _slot_id: string }
+        Returns: number
       }
       tier_for_paid_count: {
         Args: { _count: number }

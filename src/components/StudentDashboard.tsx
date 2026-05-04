@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import { useToast } from "@/hooks/use-toast";
 import { Logo } from "@/components/Logo";
+import { BroadcastInbox } from "@/components/BroadcastInbox";
 import { Sidebar } from "@/components/Sidebar";
 import type { Tables } from "@/integrations/supabase/types";
 import menuRibeye from "@/assets/menu-ribeye.jpg";
@@ -139,16 +140,67 @@ const ActivePassCard = ({
 // =====================================================
 // Pending pass — payment in progress / awaiting activation
 // =====================================================
-const PendingPassCard = ({ planName }: { planName: string }) => (
-  <div className="bg-card rounded-3xl p-6 sm:p-8 ring-1 ring-border text-center">
-    <p className="text-toast text-xs font-medium uppercase tracking-wide mb-2">Awaiting Activation</p>
-    <h2 className="font-serif text-2xl text-foreground">{planName}</h2>
-    <p className="text-toast text-sm mt-3 max-w-md mx-auto">
-      Your subscription is pending. Once payment clears (or an admin confirms a cash payment), your meal pass will
-      activate automatically.
-    </p>
-  </div>
-);
+type PendingSub = { id: string; planName: string; amount_cents: number };
+
+const PendingPassCard = ({ pending, onApplied }: { pending: PendingSub; onApplied: () => void }) => {
+  const { toast } = useToast();
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const applyOffer = async () => {
+    if (!code.trim()) return;
+    setBusy(true);
+    const { data, error } = await supabase.rpc("redeem_offer_code", { _code: code.trim(), _subscription_id: pending.id });
+    setBusy(false);
+    if (error) return toast({ title: "Could not apply", description: error.message, variant: "destructive" });
+    const r = data as { ok: boolean; reason?: string; applied_cents?: number; offer_name?: string };
+    if (!r.ok) return toast({ title: "Code rejected", description: r.reason ?? "Invalid", variant: "destructive" });
+    toast({ title: `${r.offer_name} applied`, description: `−R${((r.applied_cents ?? 0) / 100).toFixed(2)}` });
+    setCode("");
+    onApplied();
+  };
+
+  const useWallet = async () => {
+    setBusy(true);
+    const { data, error } = await supabase.rpc("apply_wallet_credit_to_subscription", { _subscription_id: pending.id });
+    setBusy(false);
+    if (error) return toast({ title: "Could not apply", description: error.message, variant: "destructive" });
+    const r = data as { ok: boolean; applied_cents?: number };
+    toast({ title: r.applied_cents ? `Wallet −R${((r.applied_cents) / 100).toFixed(2)}` : "Nothing to apply" });
+    onApplied();
+  };
+
+  return (
+    <div className="bg-card rounded-3xl p-6 sm:p-8 ring-1 ring-border">
+      <div className="text-center">
+        <p className="text-toast text-xs font-medium uppercase tracking-wide mb-2">Awaiting Activation</p>
+        <h2 className="font-serif text-2xl text-foreground">{pending.planName}</h2>
+        <p className="font-serif text-3xl text-brass mt-2">R{(pending.amount_cents / 100).toFixed(2)}</p>
+        <p className="text-toast text-sm mt-3 max-w-md mx-auto">
+          Pay at the counter or wait for online payment. Your pass activates automatically on confirmation.
+        </p>
+      </div>
+      <div className="mt-5 pt-5 border-t border-border space-y-3">
+        <div className="flex gap-2">
+          <input
+            value={code}
+            onChange={(e) => setCode(e.target.value.toUpperCase())}
+            placeholder="OFFER CODE"
+            className="flex-1 bg-input text-foreground rounded-xl px-4 py-3 ring-1 ring-border focus:ring-primary outline-none font-mono text-sm"
+          />
+          <button onClick={applyOffer} disabled={busy || !code.trim()}
+            className="px-4 py-3 rounded-xl bg-secondary ring-1 ring-border text-foreground hover:ring-primary/40 disabled:opacity-50 text-sm">
+            Apply
+          </button>
+        </div>
+        <button onClick={useWallet} disabled={busy}
+          className="w-full py-3 rounded-xl bg-primary/10 ring-1 ring-primary/30 text-brass hover:bg-primary/20 disabled:opacity-50 text-sm">
+          Use referral wallet credit
+        </button>
+      </div>
+    </div>
+  );
+};
 
 // =====================================================
 // Plan selector — payment-ready stub
@@ -337,7 +389,7 @@ const StudentDashboard = () => {
   const { user } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [activeSub, setActiveSub] = useState<ActiveSub | null>(null);
-  const [pendingPlanName, setPendingPlanName] = useState<string | null>(null);
+  const [pendingSub, setPendingSub] = useState<PendingSub | null>(null);
   const [redeemedToday, setRedeemedToday] = useState(false);
   const [plans, setPlans] = useState<MealPlan[]>([]);
   const [loadingSub, setLoadingSub] = useState(true);
@@ -351,7 +403,7 @@ const StudentDashboard = () => {
       supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle(),
       supabase
         .from("subscriptions")
-        .select("id, status, end_date, start_date, meal_plans(name, code, allowed_weekdays, duration_days, price_cents)")
+        .select("id, status, end_date, start_date, amount_cents, meal_plans(name, code, allowed_weekdays, duration_days, price_cents)")
         .eq("user_id", user.id)
         .in("status", ["active", "pending"])
         .order("created_at", { ascending: false }),
@@ -395,7 +447,7 @@ const StudentDashboard = () => {
       setRedeemedToday(false);
     }
 
-    setPendingPlanName(pending?.meal_plans?.name ?? null);
+    setPendingSub(pending ? { id: pending.id, planName: pending.meal_plans?.name ?? "Plan", amount_cents: pending.amount_cents } : null);
 
     // wallet/tier moved to Referral tab
 
@@ -416,7 +468,8 @@ const StudentDashboard = () => {
   return (
     <div className="min-h-dvh bg-background pb-12">
       <Sidebar />
-      <header className="px-5 pt-8 pb-4 flex flex-col items-center gap-4">
+      <header className="px-5 pt-8 pb-4 relative flex flex-col items-center gap-4">
+        <div className="absolute right-4 top-6"><BroadcastInbox /></div>
         <Logo size={120} />
         <div className="text-center">
           <p className="text-toast text-sm font-medium tracking-wide uppercase mb-1">
@@ -441,9 +494,9 @@ const StudentDashboard = () => {
             sub={activeSub} 
             redeemedToday={redeemedToday} 
           />
-        ) : pendingPlanName ? (
+        ) : pendingSub ? (
           <>
-            <PendingPassCard planName={pendingPlanName} />
+            <PendingPassCard pending={pendingSub} onApplied={loadAll} />
             <PlanSelector plans={plans} userId={user!.id} onCreated={loadAll} />
           </>
         ) : (

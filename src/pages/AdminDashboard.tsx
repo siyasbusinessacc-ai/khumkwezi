@@ -12,6 +12,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { OffersTab } from "@/components/admin/OffersTab";
+import { BroadcastsTab } from "@/components/admin/BroadcastsTab";
+import { SlotsTab } from "@/components/admin/SlotsTab";
+import { AnalyticsTab } from "@/components/admin/AnalyticsTab";
 
 type Stats = {
   meals_today: number;
@@ -430,20 +434,23 @@ const AdminDashboard = () => {
 
       <main className="px-5 mt-4 max-w-5xl mx-auto">
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="bg-secondary p-1 rounded-xl">
+          <TabsList className="bg-secondary p-1 rounded-xl flex-wrap h-auto">
             <TabsTrigger value="overview" className="rounded-lg">Overview</TabsTrigger>
             <TabsTrigger value="users" className="rounded-lg">Users</TabsTrigger>
+            <TabsTrigger value="offers" className="rounded-lg">Offers</TabsTrigger>
+            <TabsTrigger value="slots" className="rounded-lg">Slots</TabsTrigger>
+            <TabsTrigger value="broadcasts" className="rounded-lg">Messages</TabsTrigger>
+            <TabsTrigger value="analytics" className="rounded-lg">Analytics</TabsTrigger>
             <TabsTrigger value="history" className="rounded-lg">History</TabsTrigger>
             <TabsTrigger value="system" className="rounded-lg">System</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview">
-            <Overview stats={stats} refresh={loadData} />
-          </TabsContent>
-
-          <TabsContent value="users">
-            <UsersTab plans={plans} refreshStats={loadData} />
-          </TabsContent>
+          <TabsContent value="overview"><Overview stats={stats} refresh={loadData} /></TabsContent>
+          <TabsContent value="users"><UsersTab plans={plans} refreshStats={loadData} /></TabsContent>
+          <TabsContent value="offers"><OffersTab plans={plans} /></TabsContent>
+          <TabsContent value="slots"><SlotsTab /></TabsContent>
+          <TabsContent value="broadcasts"><BroadcastsTab /></TabsContent>
+          <TabsContent value="analytics"><AnalyticsTab /></TabsContent>
 
           <TabsContent value="history">
             <div className="space-y-3">
@@ -460,9 +467,7 @@ const AdminDashboard = () => {
             </div>
           </TabsContent>
 
-          <TabsContent value="system">
-            <SystemRepairTab />
-          </TabsContent>
+          <TabsContent value="system"><SystemRepairTab /></TabsContent>
         </Tabs>
       </main>
     </div>
