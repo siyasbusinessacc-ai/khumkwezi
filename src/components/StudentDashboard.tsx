@@ -389,7 +389,7 @@ const StudentDashboard = () => {
   const { user } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [activeSub, setActiveSub] = useState<ActiveSub | null>(null);
-  const [pendingPlanName, setPendingPlanName] = useState<string | null>(null);
+  const [pendingSub, setPendingSub] = useState<PendingSub | null>(null);
   const [redeemedToday, setRedeemedToday] = useState(false);
   const [plans, setPlans] = useState<MealPlan[]>([]);
   const [loadingSub, setLoadingSub] = useState(true);
