@@ -331,14 +331,7 @@ const MenuPreview = () => (
 // =====================================================
 // Main
 // =====================================================
-type Tier = "bronze" | "silver" | "gold" | "elite";
-
-const TIER_STYLES: Record<Tier, string> = {
-  bronze: "bg-amber-900/30 text-amber-200 ring-amber-700/40",
-  silver: "bg-slate-500/20 text-slate-100 ring-slate-400/40",
-  gold: "bg-amber-500/20 text-amber-200 ring-amber-400/50",
-  elite: "bg-gradient-to-r from-amber-500/30 to-amber-200/20 text-amber-100 ring-amber-300/60",
-};
+// Wallet + tier UI lives in the Referral tab (src/pages/ReferralPage.tsx)
 
 const StudentDashboard = () => {
   const { user } = useAuth();
