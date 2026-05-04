@@ -331,50 +331,13 @@ const MenuPreview = () => (
 // =====================================================
 // Main
 // =====================================================
-type WalletSummary = {
-  balance_cents: number;
-  tier: "bronze" | "silver" | "gold" | "elite";
-  paid_referrals: number;
-  current_tier_min: number;
-  next_tier: "bronze" | "silver" | "gold" | "elite" | null;
-  next_tier_min: number | null;
-};
+type Tier = "bronze" | "silver" | "gold" | "elite";
 
-const TIER_STYLES: Record<WalletSummary["tier"], string> = {
+const TIER_STYLES: Record<Tier, string> = {
   bronze: "bg-amber-900/30 text-amber-200 ring-amber-700/40",
   silver: "bg-slate-500/20 text-slate-100 ring-slate-400/40",
   gold: "bg-amber-500/20 text-amber-200 ring-amber-400/50",
   elite: "bg-gradient-to-r from-amber-500/30 to-amber-200/20 text-amber-100 ring-amber-300/60",
-};
-
-const WalletTierCard = ({ summary }: { summary: WalletSummary }) => {
-  const next = summary.next_tier && summary.next_tier_min !== null
-    ? Math.min(100, Math.round((summary.paid_referrals / summary.next_tier_min) * 100))
-    : 100;
-  return (
-    <div className="bg-card rounded-3xl p-5 sm:p-6 ring-1 ring-border flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-toast text-xs uppercase tracking-wide font-medium">Wallet</p>
-          <p className="font-serif text-3xl text-brass tabular-nums mt-1">{formatRand(summary.balance_cents)}</p>
-        </div>
-        <div className={`px-3 py-1.5 rounded-full ring-1 text-xs font-semibold uppercase tracking-wider ${TIER_STYLES[summary.tier]}`}>
-          {summary.tier}
-        </div>
-      </div>
-      <div>
-        <div className="flex justify-between text-xs text-toast mb-1.5">
-          <span>{summary.paid_referrals} paid referral{summary.paid_referrals === 1 ? "" : "s"}</span>
-          {summary.next_tier && (
-            <span>{summary.next_tier_min! - summary.paid_referrals} to {summary.next_tier}</span>
-          )}
-        </div>
-        <div className="h-2 rounded-full bg-secondary overflow-hidden">
-          <div className="h-full bg-primary transition-all" style={{ width: `${next}%` }} />
-        </div>
-      </div>
-    </div>
-  );
 };
 
 const StudentDashboard = () => {
