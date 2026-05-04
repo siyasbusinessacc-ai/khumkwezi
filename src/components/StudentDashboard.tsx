@@ -348,7 +348,7 @@ const StudentDashboard = () => {
   const [redeemedToday, setRedeemedToday] = useState(false);
   const [plans, setPlans] = useState<MealPlan[]>([]);
   const [loadingSub, setLoadingSub] = useState(true);
-  const [wallet, setWallet] = useState<WalletSummary | null>(null);
+  // wallet/tier removed from student dashboard — see Referral tab
 
   const loadAll = useCallback(async () => {
     if (!user) return;
