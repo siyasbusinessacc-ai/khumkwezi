@@ -403,7 +403,7 @@ const StudentDashboard = () => {
       supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle(),
       supabase
         .from("subscriptions")
-        .select("id, status, end_date, start_date, meal_plans(name, code, allowed_weekdays, duration_days, price_cents)")
+        .select("id, status, end_date, start_date, amount_cents, meal_plans(name, code, allowed_weekdays, duration_days, price_cents)")
         .eq("user_id", user.id)
         .in("status", ["active", "pending"])
         .order("created_at", { ascending: false }),
@@ -447,7 +447,7 @@ const StudentDashboard = () => {
       setRedeemedToday(false);
     }
 
-    setPendingPlanName(pending?.meal_plans?.name ?? null);
+    setPendingSub(pending ? { id: pending.id, planName: pending.meal_plans?.name ?? "Plan", amount_cents: pending.amount_cents } : null);
 
     // wallet/tier moved to Referral tab
 
@@ -494,9 +494,9 @@ const StudentDashboard = () => {
             sub={activeSub} 
             redeemedToday={redeemedToday} 
           />
-        ) : pendingPlanName ? (
+        ) : pendingSub ? (
           <>
-            <PendingPassCard planName={pendingPlanName} />
+            <PendingPassCard pending={pendingSub} onApplied={loadAll} />
             <PlanSelector plans={plans} userId={user!.id} onCreated={loadAll} />
           </>
         ) : (
